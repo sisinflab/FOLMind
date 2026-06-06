@@ -1,0 +1,270 @@
+# Knowledge Base Configuration
+knowledge_base: "dbpedia"  # Options: dbpedia, wikidata. Note a mapping file must be provided.
+
+# URI Settings
+base_uri: "http://dbpedia.org/resource/"
+
+# Smart Search Service for finding missing URIs
+# IMPORTANT NOTE: DBpedia has a rate limit (e.g., 100 queries/min). Using this service may
+# require multiple runs to fully populate the mappings due to failed calls.
+smart_search_service:
+  # If true, uses smart search to generate URIs for items missing from the mapping file.
+  # This can be time-consuming but updates the mapping file with new matches.
+  use_smart_search: False
+  # Keywords to assist the crawler in generating URI candidates. e.g., ['film', 'movie']
+  support_keyword_smart_search: ['film']
+  # The SPARQL class to validate a generated URI. e.g., for movies, check if it 'is a' Film.
+  # Example ASK query: ASK WHERE { <uri_generated> a dbo:Film . }
+  smart_query: 'a dbo:Film .'
+  # SPARQL endpoint for validation queries.
+  endpoint : 'http://dbpedia.org/sparql'
+  # Number of threads. Keep this low to respect the endpoint's rate limit.
+  max_workers: 4
+  # Save new mappings to the file after this many successful discoveries.
+  save_interval: 100
+
+# Dataset Configuration
+dataset:
+  url: "https://files.grouplens.org/datasets/movielens/ml-1m.zip"
+  data_root: "./data"       # Parent directory for all datasets
+
+# SPARQL Configuration
+sparql:
+  endpoint: "http://dbpedia.org/sparql"
+  templates:
+
+    # Movie-Level Predicates (Hop 0)
+    director: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:director ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    starring: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:starring ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    writer: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:writer ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    producer: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:producer ?o .
+        VALUES ?s { %(values)s }
+      }
+
+#    language: >
+#      PREFIX dbp: <http://dbpedia.org/ontology/>
+#      SELECT ?s ?o
+#      WHERE {
+#        ?s dbp:language ?o .
+#        VALUES ?s { %(values)s }
+#      }
+
+    editing: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:editing ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    country: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:country ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    musicComposer: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:musicComposer ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    basedOn: >
+      PREFIX dbp: <http://dbpedia.org/property/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbp:basedOn ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    subject: >
+      PREFIX dct: <http://purl.org/dc/terms/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dct:subject ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    cinematography: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?s dbo:cinematography ?o .
+        VALUES ?s { %(values)s }
+      }
+
+    # Person-Level Predicates (Hop 1)
+    director_of: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?o dbo:director ?s .
+        VALUES ?s { %(values)s }
+      }
+
+    starring_of: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?o dbo:starring ?s .
+        VALUES ?s { %(values)s }
+      }
+
+    producer_of: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?o dbo:producer ?s .
+        VALUES ?s { %(values)s }
+      }
+
+    author_of: >
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      SELECT ?s ?o
+      WHERE {
+        ?o dbo:author ?s .
+        VALUES ?s { %(values)s }
+      }
+
+  processes: 4
+  chunk_size: 20
+  max_hops: 1
+  hop_categories: ["movie", "person"]
+
+# Data Processing Configuration
+processing:
+  entity_keywords: ["movies"]
+  interaction_keywords: ["ratings"]
+  user_keywords: [ "users" ]
+
+  entity_columns: ["MovieID", "Title", "Genres"]
+  interaction_columns: ["UserID", "MovieID", "Rating", "Timestamp"]
+  user_columns: [ "UserID", "Gender", "Age", "Occupation", "Zip-code" ]
+
+  entity_relations:
+    - type: multi_value
+      subject_col: "kb_uri"
+      object_col: "Genres"
+      predicate: "has_genre"
+      separator: "|"
+  interaction_relations:
+    - type: conditional
+      subject_col: "UserID"
+      value_col: "Rating"
+      object_col: "kb_uri"
+      predicate: "likes"
+      condition: ">=3.0"
+    - type: conditional
+      subject_col: "UserID"
+      value_col: "Rating"
+      object_col: "kb_uri"
+      predicate: "dislikes"
+      condition: "<3.0"
+  # user_relations: not used in this config
+
+# Column Mapping
+columns:
+  entity_id: "MovieID"
+  kb_uri: "kb_uri"
+  user_id: "UserID"
+  rating: "Rating"
+  age: "Age"
+  gender: "Gender"
+  occupation: "Occupation"
+  zipcode: "Zip-Code"
+  # Fallback column to generate a URI if one is not in the mapping file
+  fallback_uri: "Title"
+
+# Entity Mapping Configuration
+mapping:
+  file: "data/external_mappings/MappingMovielens2DBpedia-1.2.tsv"
+  columns: ["MovieID", "Title", "kb_uri"]
+
+# Predicate Translation Rules
+predicate_mapping:
+  dbpedia:
+    movie:
+      director: "directed_by"       # Map movie director predicate to a more descriptive name
+      genre: "has_genre"            # Map movie genre predicate
+      starring: "starring"          # Map movie starring predicate
+      writer: "written_by"          # Map movie writer predicate
+      producer: "produced_by"       # Map movie producer predicate
+      # language: "has_language"
+      editing: "edited_by"
+      # country: "in_country"
+      musicComposer: "music_by"
+      # basedOn: "based_on"
+      subject: "subject"
+      cinematography: "cinematography"
+    person:
+      director_of: "director_of"    # Map person director predicate
+      starring_of: "starring_of"    # Map person starring predicate
+      author_of: "author_of"        # Map person author predicate
+      producer_of: "producer_of"    # Map person producer predicate
+
+
+# Data value mappings for demographic information in users.dat
+value_mappings:
+  users:
+    Gender:
+      F: "Female"
+      M: "Male"
+    Occupation:
+      0: "other"
+      1: "academic/educator"
+      2: "artist"
+      3: "clerical/admin"
+      4: "college/grad_student"
+      5: "customer_service"
+      6: "doctor/health_care"
+      7: "executive/managerial"
+      8: "farmer"
+      9: "homemaker"
+      10: "K-12_student"
+      11: "lawyer"
+      12: "programmer"
+      13: "retired"
+      14: "sales/marketing"
+      15: "scientist"
+      16: "self-employed"
+      17: "technician/engineer"
+      18: "tradesman/craftsman"
+      19: "unemployed"
+      20: "writer"
+    Age:
+      1:  "Under_18"
+      18: "18-24"
+      25: "25-34"
+      35: "35-44"
+      45: "45-49"
+      50: "50-55"
+      56: "56+"

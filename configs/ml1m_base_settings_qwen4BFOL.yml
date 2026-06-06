@@ -1,0 +1,121 @@
+dataset: ml-1m
+
+data_config:
+  strategy: random_holdout
+  split_params:
+    test_size: 0.2
+    validation_size: 0.1 # remove the field if you don't want validation set
+    # timestamp_col: "timestamp" only for temporal
+    random_state: 42
+  subset_interactions:
+    min_user_interactions: 10
+    min_item_interactions: 10
+
+amie:
+  maxad: 4
+  pm: "headcoverage"
+  mins: 1000
+  minhc: 0.01
+  verbose: true
+  min_support: 0.01
+  min_confidence: 0.001
+  minc: 0.0
+
+LLMEmb:
+  # Domain specific prompts - use only filename and put the files in the correct dir: "Emb/prompts"
+  user_prompt_file: "movie_user_prompt.txt"
+  item_prompt_file: "movie_item_prompt.txt"
+  # write here words you want to remove from LLM response before create embeddings (mainly common words or due to prompt format)
+  text_cleaning_labels: []
+  # specific the correct config for the right external KB
+  crawler_config: "ml1m_crawler_config_dbpedia.yml"
+  # 'resume' - if true the API calls will resume from the last+1 user saved
+  resume: true
+  # 'threads' - threads used to parallelize prompt pre-gen, api calls and embeddings generation
+  threads: 4
+  # 'save_calls_steps' (scs) - every N API calls the data will be dumped in a file to safe-save data
+  save_calls_steps: 5
+  # 'use_scs_for_prompt_pregen' - if set to False pre-gen prompt will be saved all together
+  use_scs_for_prompt_pregen: False
+  # ---------------------------------------------------------------------------------------------------------- #
+  # 'use_local_model_handler' - if set to True will use 'embedding_model' to download, store and load the model;
+  # then use the same model to generate embeddings
+  # if set to False: Emb will try to use it directly from HuggingFace, if it fails it uses directly: "efederici/sentence-bert-base"
+  use_local_model_handler: True
+  # 'batch_size' - batch_size for the local_model_handler (ONLY FOR IT atm!)
+  # if set to 0 will be automatically calculated with a safe_buffer dim
+  batch_size: 8
+  # 'embedding_model' - if set to None uses directly default_model: "efederici/sentence-bert-base"
+  embedding_model: 'ashercn97/Linq-Embed-Mistral-bnb-4bit'  # quantized version of Linq-Embed-Mistral
+  # 'huggingface_key' - is only necessary if the model is gated otherwise set to None
+  huggingface_key: None
+  # 'api_keys' - lists of api keys that will be used for user_intent generation (in this case only using Gemini)
+  api_keys: []
+  # 'encode_item' - uses the same 'embedding_model' to encode items metadata generating for item embedding (default = False)
+  encode_item: True
+  max_missing_rate_per_pred: 0.05   # default -> filter all predicates that have missing rate >= 5%
+  # 'show_tsne_plot' (default = False) -> show the second tsne plot after cleaning predicates given max_missing_rate_per_pred
+  show_tsne_plot: True
+  metaEmb_batch_size: 32
+
+experiment:
+  evaluation:
+    cutoffs: [5, 10, 20, 50]
+    accuracy_metrics: [ 'ndcg', 'recall', 'precision' ] #'map', 'mrr', 'f1'
+    beyond_accuracy_metrics: [ ] #'arp', 'item_coverage', 'aplt', 'gini', 'epc', 'efd', 'popreo'
+  top_k: 50
+  gpu: 1
+
+    # Recommender models to run
+  models:
+
+    # hpt (MF2020 baseline + refining blend mode) together, LLMEmb
+    MF_Elliot_Joint_HPOQwen4BFOL:
+      hpo:
+        enabled: true
+        n_trials: 25
+        metric_to_optimize: "ndcg@10"
+        search_space:
+          factors:
+            type: "categorical"
+            values: [ 8, 16, 32, 64, 128, 256 ]
+          lr:
+            type: "float"
+            low: 0.00001
+            high: 1.0
+            log: true
+          reg:
+            type: "float"
+            low: 0.00001
+            high: 0.1
+            log: true
+          epochs:
+            type: "int"
+            low: 30
+            high: 100
+          m:
+            type: "categorical"
+            values: [ 4, 6, 8 ]
+      seed: 42
+      meta:
+        save_recs: false
+      folm:
+        refined: true
+        mode: 'hybrid_blend'
+        entity_emb: 'user'
+        info_emb: 'LLMEmb'
+        type_emb: 'ST'
+        emb_source_model: 'Qwen3-Embedding-4B'
+        search_space:
+          alpha:
+            type: "float"
+            low: 0.0
+            high: 1.0
+          top_k_similar:
+            type: "int"
+            low: 5
+            high: 6040
+
+
+
+

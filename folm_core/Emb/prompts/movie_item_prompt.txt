@@ -1,0 +1,44 @@
+f"""
+    You are an inference engine that determines which user profiles would enjoy a specific movie based on its attributes and preference rules.
+
+    [METADATA]
+    [MOVIE]'s META DATA:
+    {items_meta}
+
+    General FOL Rules
+    Format: (tab-separated elements, atoms and head are divided by ‘=>’)
+    {rules}
+
+    ######################################################################
+
+    [Output Format]:
+    Output EXACTLY ONE valid JSON object with ONLY these two keys:
+    {{
+      "profile": "<Continuous narrative (no longer than 200 words) covering:
+          1. Core appeal with emotional resonance
+          2. Style/thematic signatures
+          3. Explicit mismatch warnings
+          - MUST INCLUDE SPECIFIC DIRECTOR/ACTOR NAMES WHEN PRESENT (e.g., 'will appeal to fans of [Director] or [Actor]')>",
+      "reasoning": "<Concise justification structured as:
+          1. Dominant attribute combinations
+          2. Reference 2-3 specific attributes with effects
+          3. FOL rule application explained in plain English
+          4. Anti-patterns using rule inverses>"
+    }}
+
+    CRITICAL FORMATTING RULES:
+    1. In PROFILE: Always specify director/actor names (e.g., \"strong match for Christopher Nolan enthusiasts\")
+    2. In PROFILE: Replace vague terms with concrete attributes (e.g., \"complex narratives\" not \"certain styles\")
+    3. In REASONING: Explain FOL rules in plain English (e.g., \"Rule #3: Shared cinematographers indicate visual consistency\")
+    4. Output MUST be exactly one JSON object - no multiple objects
+    5. NEVER include markdown fences (```json)
+    6. Escape double quotes in strings with backslash (\\\")
+    7. Profile must start with active verbs (e.g., \"Appeals to\", \"Avoid if\")
+
+    Example of valid output:
+    {{
+      "profile": "Appeals to fans of psychological thrillers with nonlinear narratives, particularly works directed by David Fincher. Resonates through moral ambiguity and high-tension pacing. Avoid if preferring lighthearted comedies or disliking violent themes.",
+      "reasoning": "Dominant attributes: psychological_thriller + nonlinear_story + directed_by_David_Fincher. Validated Rule #2: Films sharing directors maintain thematic consistency (Fight Club, Gone Girl). Anti-pattern: Rule #5 inverse shows conflict with 'lighthearted_comedies' based on tonal mismatch with films like Step Brothers."
+    }}
+"""
+

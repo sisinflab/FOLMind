@@ -1,0 +1,128 @@
+data:
+  dataset_dir: "book-genome"
+  user_emb_source: "LLMEmb"          # ['LLMEmb', 'metaEmb']
+  user_emb_type: "ST"               # ['last','mean','step','bert']
+  user_info_type: "profile"                    # profile type information:
+  #                                             - metaEmb -> ['likes','dislikes','mixed']; (mixed is the aggregation concat/sum (?) )
+  #                                             - LLMEmb -> ['profile', 'reasoning'];
+  user_emb_model: "Qwen3-Embedding-4B"  # last piece of the full name of the embedding; eg: '*_*_*_all-mpnet-base-v2'
+                                       # in this case -----> user_emb_model: "all-mpnet-base-v2"
+  # Is it possible to set the item_emb_source and item_emb_type
+  # If they are not set, it will be automatically defined using the user one.
+  # The info_type **FOR ITEMS** is one based on our original code
+  # [WARINING!!] : "mixed" for user_info_type is not implemented yet
+  item_emb_source: "LLMEmb"
+  item_emb_type: "ST"
+  item_emb_model: "Qwen3-Embedding-4B"  # last piece of the full name of the embedding; eg: '*_*_*_all-mpnet-base-v2'
+                                       # in this case -----> user_emb_model: "all-mpnet-base-v2"
+  # # # # # # # # # # # # # # # # #
+  seed: 42
+  dataset_type: "BPR"            # one of: BPR, Pointwise
+  neg_samples: 10                # Number of negatives for each positive
+  binarize: False               # Binarize scores in ratings.csv
+  rating_col: 'rating'           # Ratings column name in the .csv file -> so it works for other column names too
+
+model:
+  name: "NeuMF"                        # class name of the model
+  params:
+    mf_factors: 96
+    mlp_factors: 128
+    mlp_hidden_size: [128, 64]
+    dropout: 0.35
+  device: "cuda"                 # or \"cpu\"
+
+criterion:
+  name: 'HINGE'
+  params:
+    margin: 0.40
+
+optimizer:
+  name: "AdamW"                  # one of: Adam, AdamW, SGD
+  lr: 0.001
+  weight_decay: 0.00001
+
+# NOTE: scheduler works on metrics so, define the patience based on the eval > 'eval_every', since it will
+# update the 'patience counter' only after an evaluation (at least 1th, last and every n epochs)
+scheduler:
+  name: "ReduceLROnPlateau"      # one of: ReduceLROnPlateau, StepLR
+  params:
+    factor: 0.75
+    patience: 1
+    mode: 'max'                  # if mode -> "max" works on metric to optimize (eg: ndcg) else 'min' works on loss
+
+train:
+  epochs: 150
+  batch_size: 2048
+  eval_batch: 512                # optional: batch size for full‐matrix scoring
+  evaluate_cutoff: 5             # evaluation cutoff
+  metrics:
+    - "ndcg"
+
+eval:
+  validation:
+    metrics: ['ndcg', 'recall', 'precision']
+    cutoff: [5, 10, 20, 50]
+    eval_every: 5     # eval every N epochs and the first one
+  test:
+    metrics: ['ndcg', 'recall', 'precision']
+    cutoff: [5, 10, 20, 50]
+
+# NOTE: early stopping works on metrics so, define the patience based on the eval > 'eval_every', since it will
+# update the 'patience counter' only after an evaluation (at least 1th, last and every n epochs)
+early_stopping:
+  patience: 10
+  monitor: "ndcg@10"
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# HyperParams search OPTUNA [overwrite the base (above) config]
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+optuna:
+  study_name: "genome_optuna_neural_baseline"
+  n_trials: 30
+  direction: "maximize" # "maximize" a metric or "minimize" a loss
+  search_space:
+    - param_name: "optimizer.lr"
+      type: "float"
+      params:
+        low: 0.00001
+        high: 0.01
+        log: True
+
+    - param_name: "model.params.mf_factors"
+      type: "categorical"
+      params:
+        choices: [ 32, 64, 96, 128, 256]
+
+    - param_name: "model.params.mlp_factors"
+      type: "categorical"
+      params:
+        choices: [ 32, 64, 96, 128, 256]
+
+    - param_name: "model.params.mlp_hidden_size"
+      type: "categorical"
+      params:
+        choices:
+          - [ 128, 64 ]
+          - [ 64, 32 ]
+          - [ 64, 32, 16 ]
+
+    - param_name: "model.params.dropout"
+      type: "float"
+      params:
+        low: 0.15
+        high: 0.50
+
+    - param_name: "criterion.params.margin"
+      type: "float"
+      params:
+        low: 0.35
+        high: 0.55
+
+    - param_name: "optimizer.weight_decay"
+      type: "float"
+      params:
+        low: 1.0e-5
+        high: 1.0e-3
+        log: True

@@ -1,0 +1,49 @@
+f"""
+    You are an inference engine that helps to determine which types of books a specific user is likely to enjoy, in order to build concise user profiles.
+
+    [METADATA]
+    [USER]'s PROFILE DATA:
+    {user_profile}
+    [USER]'s INTERACTIONS (ratings):
+    {user_history}
+    RELATED BOOK METADATA:
+    {items_meta}
+
+    General FOL Rules
+    Format: (tab-separated elements, atoms and head are divided by ‘=>’)
+    {rules}
+
+    ######################################################################
+
+    Task: Analyze [METADATA] using this structured workflow to generate a narrative profile and reasoning:
+
+    [Output Format]:
+    Output EXACTLY ONE valid JSON object with ONLY these two keys:
+    {{
+      "profile": "<Continuous narrative (no longer than 100 words) covering:
+         1. Core preferences with thematic resonance (e.g., epic fantasy, political intrigue)
+         2. Style/genre patterns (e.g., science fiction, historical non-fiction)
+         3. Explicit dislike triggers (e.g., avoids romance, dislikes dense prose)
+         - MUST INCLUDE SPECIFIC AUTHOR NAMES WHEN PRESENT (e.g., 'frequently chooses books written by [Author]')>",
+      "reasoning": "<Concise justification structured as:
+         1. Rating patterns (e.g., high/low ratings for specific genres)
+         2. Reference 2-3 specific examples with attributes (book title and author/genre)
+         3. FOL rule application explained in plain English
+         4. Anti-patterns with dislike examples>"
+    }}
+
+    CRITICAL FORMATTING RULES:
+    1. In PROFILE: Always specify author names when available (e.g., "prefers books written by J.R.R. Tolkien")
+    2. In PROFILE: Never use vague terms like "certain authors" - replace with actual names or genres
+    3. In REASONING: Always explain FOL rules in plain English (e.g., "books by the same author often share a similar writing style")
+    4. Output MUST be exactly one JSON object - no multiple JSON objects
+    5. NEVER include markdown code fences (```json or ```)
+    6. Escape double quotes in strings with backslash (\")
+    7. Profile must start sentences with active verbs (e.g., "Prefers", "Avoids")
+
+    Example of valid output:
+    {{
+      "profile": "Prefers epic fantasy novels with deep world-building, particularly those written by J.R.R. Tolkien. Avoids contemporary romance. Frequently chooses books from the high fantasy genre, such as works by George R.R. Martin.",
+      "reasoning": "High ratings for The Hobbit (written by Tolkien) and A Game of Thrones (high fantasy). Validated rule: Authors often write within a consistent genre. Supported by: enjoying both The Lord of the Rings and The Hobbit by Tolkien. Disliked The Notebook due to its contemporary romance elements."
+    }}
+"""

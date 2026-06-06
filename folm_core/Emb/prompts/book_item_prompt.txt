@@ -1,0 +1,43 @@
+f"""
+    You are an inference engine that determines which user profiles would enjoy a specific book based on its attributes and preference rules.
+
+    [METADATA]
+    [BOOK]'s META DATA:
+    {items_meta}
+
+    General FOL Rules
+    Format: (tab-separated elements, atoms and head are divided by ‘=>’)
+    {rules}
+
+    ######################################################################
+
+    [Output Format]:
+    Output EXACTLY ONE valid JSON object with ONLY these two keys:
+    {{
+      "profile": "<Continuous narrative (no longer than 200 words) covering:
+          1. Core appeal with thematic resonance (e.g., philosophical depth, political commentary)
+          2. Writing style/thematic signatures (e.g., complex narratives, sparse prose)
+          3. Explicit mismatch warnings
+          - MUST INCLUDE SPECIFIC AUTHOR/GENRE NAMES WHEN PRESENT (e.g., 'will appeal to fans of [Author] or the [genre] genre')>",
+      "reasoning": "<Concise justification structured as:
+          1. Dominant attribute combinations (e.g., genre + author)
+          2. Reference 2-3 specific attributes with effects (e.g., detailed descriptions create immersive world-building)
+          3. FOL rule application explained in plain English
+          4. Anti-patterns using rule inverses>"
+    }}
+
+    CRITICAL FORMATTING RULES:
+    1. In PROFILE: Always specify author/genre names (e.g., \"strong match for science fiction enthusiasts\")
+    2. In PROFILE: Replace vague terms with concrete attributes (e.g., \"complex political themes\" not \"certain topics\")
+    3. In REASONING: Explain FOL rules in plain English (e.g., \"Rule #3: Books sharing an author indicate stylistic consistency\")
+    4. Output MUST be exactly one JSON object - no multiple objects
+    5. NEVER include markdown fences (```json)
+    6. Escape double quotes in strings with backslash (\\\")
+    7. Profile must start with active verbs (e.g., \"Appeals to\", \"Avoid if\")
+
+    Example of valid output:
+    {{
+      "profile": "Appeals to fans of science fiction epics with complex political and philosophical themes, particularly the works of Frank Herbert. Resonates through its intricate world-building and morally ambiguous characters. Avoid if preferring lighthearted, fast-paced stories or disliking dense prose.",
+      "reasoning": "Dominant attributes: science_fiction + political_intrigue + written_by_Frank_Herbert. Validated Rule #2: Books sharing a genre maintain thematic consistency (Dune, Foundation). Anti-pattern: Rule #5 inverse shows conflict with 'lighthearted_fiction' based on tonal mismatch with books like The Hitchhiker's Guide to the Galaxy."
+    }}
+"""
