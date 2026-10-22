@@ -222,19 +222,34 @@ The YAML configuration controls the dataset, preprocessing, rule-mining settings
 
 ## Citation
 
-If this repository or the FOLMind method supports your work, please cite the accepted paper. The entry below identifies its **acceptance status**; replace it with the definitive proceedings citation once available.
+If you use FOLMind in your research, please cite our paper. The following BibTeX entry follows the DBLP format; publication metadata will be updated once the official proceedings and DBLP record become available.
 
 ```bibtex
-@unpublished{smaldini2026folmind,
-  title  = {FOLMind: Logic-Guided Hybrid Representations for Collaborative Recommendation},
-  author = {Smaldini, Raffaele and Carmosino, Gianni and Di Palma, Dario and
-            Mancino, Alberto Carlo Maria and Di Noia, Tommaso and Narducci, Fedelucio},
-  year   = {2026},
-  note   = {Accepted at the Second International Workshop on Hybrid AI for
-            Human-Centric Personalization and Recommendation (HyPeR 2026),
-            co-located with CIKM 2026}
+@inproceedings{SmaldiniCPMDN26,
+  author    = {Raffaele Smaldini and
+               Gianni Carmosino and
+               Dario Di Palma and
+               Alberto Carlo Maria Mancino and
+               Tommaso Di Noia and
+               Fedelucio Narducci},
+  title     = {FOLMind: Logic-Guided Hybrid Representations for
+               Collaborative Recommendation},
+  booktitle = {Proceedings of the Second International Workshop on
+               Hybrid AI for Human-Centric Personalization and
+               Recommendation (HyPeR 2026), co-located with the
+               ACM International Conference on Information and
+               Knowledge Management (CIKM 2026),
+               Rome, Italy, November 8, 2026},
+  pages     = {},
+  year      = {2026},
+  crossref  = {},
+  url       = {},
+  timestamp = {},
+  biburl    = {},
+  bibsource = {}
 }
 ```
+
 
 ## Contributing
 
