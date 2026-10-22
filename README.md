@@ -1,212 +1,255 @@
-# FOLMind: Logic-to-Narrative Profile Embeddings for Collaborative Filtering
+<div align="center">
 
-**FOLMind** is a logic-to-narrative representation framework that transforms mined First-Order Logic (FOL) rules into narrative profiles, bridging symbolic relational knowledge and continuous semantic representations for collaborative recommendation. 
+# FOLMind
 
-LLM-based recommender approaches often rely solely on local histories or metadata, underutilizing dataset-level regularities encoded in the interaction graph. FOLMind addresses this gap by creating a symbolic summary of the dataset's structure through FOL rules, verbalizing them into natural-language profiles, and infusing this knowledge into collaborative backbones.
+### Logic-Guided Hybrid Representations for Collaborative Recommendation
 
-This repository contains the full implementation of the FOLMind pipeline, from data processing and KG construction to rule mining, LLM-based narrative profile generation, semantic embedding, and hybrid recommendation experiments.
+**From dataset-level symbolic regularities to narrative user profiles and collaborative ranking.**
 
-## 🔍 Overview
-FOLMind performs **semantic smoothing**: it translates discrete logical implications into natural-language profile context before embedding them into a continuous semantic space.
+[![Accepted at HyPeR 2026](https://img.shields.io/badge/Accepted-HyPeR%202026-168779?style=flat-square)](https://aisocietylab.github.io/hyper26/)
+[![CIKM 2026 Workshop](https://img.shields.io/badge/Workshop-CIKM%202026-365F91?style=flat-square)](https://cikm2026.diag.uniroma1.it/)
+[![Official implementation](https://img.shields.io/badge/Code-Official%20Implementation-D97757?style=flat-square)](https://github.com/sisinflab/FOLMind)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-59677A?style=flat-square)](LICENSE)
 
-The framework operates through a five-stage pipeline:
-1.  **Knowledge Graph Construction**: Builds a unified, dataset-specific KG by mapping items to URIs in external knowledge graphs (e.g., DBpedia) and retrieving semantic neighborhood metadata via multi-hop SPARQL traversals.
-2.  **Symbolic Rule Extraction**: Employs the AMIE rule miner to automatically extract Horn-clause rules from the KG (e.g., `watched(u, Interstellar) ∧ watched(u, Gravity) → prefers(u, sci-fi)`), providing symbolic evidence of recurring relational patterns.
-3.  **Narrative Profile Generation**: Uses an LLM (e.g., **Gemini 2.5 Flash Lite**) with structured prompts to generate concise, narrative user and item profiles based on histories, metadata, and the applicable mined FOL rules.
-4.  **Semantic Embedding Generation**: Encodes the generated narrative profiles into a dense semantic space using models like **Qwen3-Embedding-4B**.
-5.  **Backbone Integration**: Integrates the resulting semantic representations into classical and neural collaborative recommendation models through backbone-specific strategies:
-    *   **SpaceInit (for NeuMF)**: Initializes user and item representations by projecting the semantic embeddings into the neural model's latent space.
-    *   **Hybrid-Blend (for MF)**: Computes semantic similarity from the embeddings, propagates it through the semantic neighborhood, and linearly combines it with the collaborative MF score at inference time.
+**Accepted at the Second International Workshop on Hybrid AI for Human-Centric Personalization and Recommendation (HyPeR 2026)**  
+*Co-located with CIKM 2026 · November 8, 2026 · Rome, Italy*
 
-### ✨ Key Features
-*   **End-to-End Logic-to-Narrative Pipeline**: A complete workflow from raw data to hybrid recommendation, including crawling, KG construction, rule mining, and LLM narrative generation.
-*   **Symbolic Profile Enrichment**: Uses mined FOL rules as structured evidence to make LLM-generated profiles aware of global dataset semantics, improving upon narrative-only profiles.
-*   **Flexible Collaborative Integration**: Implements model-specific integration strategies (`SpaceInit` and `Hybrid-Blend`) to enhance existing collaborative recommendation paradigms.
-*   **Empirical Validation**: Codebase to reproduce the experiments on **MovieLens-1M** and **Book Genome** datasets, demonstrating nDCG gains up to +30.51%.
+[Workshop & program](https://aisocietylab.github.io/hyper26/) · [Repository](https://github.com/sisinflab/FOLMind) · [Reproduce the results](#reproducing-the-experiments) · [Citation](#citation)
+
+</div>
 
 ---
 
-## Table of Contents
+> **Official research code.** This repository hosts the implementation and experimental pipeline accompanying the accepted paper **“FOLMind: Logic-Guided Hybrid Representations for Collaborative Recommendation.”**
 
-- [Reproducing Experimental Results](#reproducing-experimental-results)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Framework Architecture](#framework-architecture)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
+## Why FOLMind?
 
----
-## 📊 Reproducing Experimental Results
+An LLM can describe a user's preferences from their interaction history and item metadata. But a local history does not explicitly expose **relational regularities across the complete training interaction graph**. Knowledge graphs and mined First-Order Logic (FOL) rules provide a complementary, dataset-level view.
 
-To replicate the experimental results from the FOLMind paper (evaluating NeuMF and MF on MovieLens 1M and Book Genome), follow these steps:
+**FOLMind connects these views at the representation level:** mined feedback-oriented rules condition an LLM's narrative *user-profile generation*; a text embedding model maps those profiles to vectors; and an existing collaborative recommender performs the final ranking.
 
-1.  **Install the Environment**
-    Follow all the steps in the [Installation](#installation) section below to set up the `folm_env` conda environment, install all dependencies, and configure your API key.
+The key design decision is **soft symbolic guidance, not hard logical constraints**. Rules are contextual evidence for building representations. They are not enforced on recommendation scores, and the LLM does not replace the collaborative ranker.
 
-2.  **Run the Full Pipeline and Experiments**
-    The following commands will execute the entire workflow: data processing, rule mining, embedding generation, and finally, the recommendation experiments.
+### Results at a glance
 
-    *   **Step 1: Run the Data Processing and Embedding Generation Pipeline**
-        This command crawls the data, builds the KG, mines rules with AMIE, generates Gemini LLM-based narrative profiles, and encodes them using DEFAULT MODELS. To use `Qwen3-4B` please refer to `variantHandler.py`.
-        ```bash
-        python run.py --config ml1m_base_settings_baseline.yml --run-all
-        ```
+| Comparison | Reported nDCG@10 improvement | What it measures |
+| :-- | :-- | :-- |
+| **Full FOLMind vs. collaborative baseline** | **+12.29% to +30.51%** | Benefit of the complete semantic-profile-enhanced configuration |
+| **FOL vs. NoFOL** | **+0.34% to +7.10%** | Additional increment associated with supplying mined rules during user profiling |
 
-    *   **Step 2: Run the MF Experiments (Hybrid-Blend)**
-        This evaluates Matrix Factorization (MF) enhanced with the generated embeddings using the Hybrid-Blend score-fusion strategy.
-        ```bash
-        python run_experiments.py -c ml1m_base_settings_qwen4BFOL.yml
-        ```
+Results are from **MovieLens 1M** and **Book Genome**, using **NeuMF + SpaceInit** and **MF + Hybrid-Blend**. Narrative profiles account for most of the overall improvement; symbolic conditioning supplies a smaller, dataset-dependent increment. We report these two comparisons separately to avoid attributing all gains to FOL.
 
-    *   **Step 3: Run the NeuMF Experiments (SpaceInit)**
-        This evaluates the Neural Matrix Factorization (NeuMF) models using the `SpaceInit` strategy. *(Note: Ensure your neural config file points to the desired Qwen3 embeddings generated in Step 1)*.
-        ```bash
-        python run_neural_experiments.py --config ml1m_optuna_neural_baseline.yml
-        python run_neural_experiments.py --config ml1m_optunaNewNMF_LLMEmb_QWEN4.yml
-        ```
+## How it works
 
----
-
-## 📥 Installation
-
-### Prerequisites
-*   [Anaconda](https://www.anaconda.com/products/distribution) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
-*   Git
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/.../FOLMind.git
-cd FOLMind
+```mermaid
+flowchart LR
+    D["Training interactions<br/>+ item metadata"] --> G["Knowledge graph"]
+    G --> R["AMIE rule mining"]
+    R --> F["Feedback-headed rules<br/>likes / dislikes"]
+    H["Local user history<br/>+ metadata"] --> P["LLM narrative<br/>user profile"]
+    F --> P
+    P --> E["Text embedding"]
+    E --> N["NeuMF<br/>SpaceInit"]
+    E --> B["MF<br/>Hybrid-Blend"]
+    I["Item metadata"] --> IP["Narrative item profile<br/>for SpaceInit"]
+    IP --> IE["Item embedding"]
+    IE --> N
 ```
 
-### 2. Create and Activate the Conda Environment
-This command creates a new Conda environment named `folm_env` using the provided `environment.yml` file.
+The diagram is a high-level overview. In the evaluated configuration, **feedback-headed rules condition user profiles**, while **item profiles for SpaceInit are generated from item metadata**. All knowledge-graph construction, rule mining, and profile generation use **training interactions only**.
+
+### The five-stage pipeline
+
+1. **Knowledge-graph construction.** Combine training-derived user feedback with semantic item metadata from an external knowledge base (DBpedia in the reported experiments).
+2. **Symbolic rule extraction.** Mine Horn rules using **AMIE**, then retain rules whose heads express user feedback (`likes` or `dislikes`). These retained rules form dataset-level symbolic context; they are **not** a set of verified user-specific deductions.
+3. **Narrative profile generation.** Provide local user history, corresponding item metadata, and retained rules to **Gemini 2.5 Flash Lite**. The LLM generates a concise user profile. A separate reasoning field is retained for inspection but is **not embedded** in the reported ranking experiments.
+4. **Semantic embedding.** Encode narrative profile text using **Qwen3-Embedding-4B**, producing dense semantic representations.
+5. **Collaborative integration.** Feed those representations to existing recommenders using one of the two interfaces below.
+
+| Interface | Backbone | Where semantic information enters | Mechanism |
+| :-- | :-- | :-- | :-- |
+| **SpaceInit** | NeuMF | **Training time** | User and item profile vectors initialize trainable embedding tables, which are adapted jointly with the neural recommender. |
+| **Hybrid-Blend** | Matrix Factorization | **Scoring time** | User-profile similarity defines semantic neighborhoods and their predictions, which are blended with the MF scores. |
+
+**No online LLM call is required for each recommendation** after profiles and embeddings have been precomputed; profile construction is an offline step.
+
+## Experimental results
+
+The paper evaluates ranking at cutoff 10. Below, the absolute values are **nDCG@10**, and the percentages are relative changes (not percentage-point differences).
+
+### Full configuration vs. collaborative baselines
+
+| Backbone | Dataset | Baseline | FOLMind (FOL) | Relative gain |
+| :-- | :-- | --: | --: | --: |
+| NeuMF | MovieLens 1M | 0.2668 | 0.3203 | **+20.05%** |
+| NeuMF | Book Genome | 0.0768 | 0.0956 | **+24.48%** |
+| MF | MovieLens 1M | 0.2864 | 0.3216 | **+12.29%** |
+| MF | Book Genome | 0.0613 | 0.0800 | **+30.51%** |
+
+The full FOLMind configurations also improve Recall@10 and Precision@10 in all four evaluated dataset–backbone combinations (paper, Table 4).
+
+### Symbolic contribution: FOL vs. NoFOL
+
+The **NoFOL** condition keeps narrative-profile generation and its downstream integration but removes symbolic context from user-profile prompting.
+
+| Backbone | Dataset | NoFOL | FOL | Relative FOL increment |
+| :-- | :-- | --: | --: | --: |
+| NeuMF | MovieLens 1M | 0.3192 | 0.3203 | **+0.34%** |
+| NeuMF | Book Genome | 0.0903 | 0.0956 | **+5.87%** |
+| MF | MovieLens 1M | 0.3201 | 0.3216 | **+0.47%** |
+| MF | Book Genome | 0.0747 | 0.0800 | **+7.10%** |
+
+On **Book Genome**, the symbolic increment is larger even though only **2 feedback-headed rules** were retained, compared with **59 on MovieLens 1M** (paper, Tables 1 and 5). This suggests that rule quantity alone does not explain the effect; explanations involving sparsity, relevance, and alignment require further evaluation.
+
+> **Scope of the claims.** These experiments establish ranking differences within the evaluated configurations. They do not directly establish profile faithfulness, causal effects of sparsity, explanation quality, fairness, or user trust.
+
+## Getting started
+
+### Requirements
+
+- Git
+- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or [Anaconda](https://www.anaconda.com/)
+- A compatible PyTorch setup (GPU recommended for profile embedding and neural experiments)
+- A Google AI API key for the Gemini-based profile-generation stage
+
+### Installation
+
 ```bash
+git clone https://github.com/sisinflab/FOLMind.git
+cd FOLMind
+
 conda env create -f environment.yml
 conda activate folm_env
 ```
 
-### 3. Install PyTorch and Dependencies
-Choose the appropriate command based on your hardware (NVIDIA GPU or CPU-only).
+Install PyTorch and PyG dependencies appropriate to your environment. The commands below are retained from this repository's original setup guidance; check compatibility with your Python, PyTorch, CUDA, and operating-system versions before running them.
 
-#### Option A: With NVIDIA GPU (CUDA 12.1 Support)
+<details>
+<summary><strong>PyTorch / PyG installation examples</strong></summary>
+
+**NVIDIA GPU (CUDA 12.1 example):**
+
 ```bash
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu121.html
 ```
 
-#### Option B: CPU-Only Installation
+**CPU-only example:**
+
 ```bash
 pip3 install torch torchvision torchaudio
 pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.6.0+cpu.html
 ```
-*Note regarding Model Compatibility: Selecting Option B may result in compatibility issues with certain text embedding models due to limitations within the "transformers" library.*
 
-### 4. Verify the Installation
-Run the following command to ensure all dependencies are correctly installed.
+CPU-only environments may encounter compatibility or performance limitations for particular embedding-model configurations.
+
+</details>
+
+Verify the installed environment:
+
 ```bash
 pip check
 ```
-The expected output is: `No broken requirements found.` *(If packages were skipped during environment creation, install them manually via pip).*
 
-### 5. Set Up Google AI API Key
-FOLMind uses the Google Gemini API (specifically Gemini 2.5 Flash Lite) for narrative profile generation. You must configure your API key within the relevant YAML configuration file in the `configs/` directory.
+### Configure Gemini
 
-Find the `LLMEmb` section in your chosen config file (e.g., `configs/ml1m_base_settings.yml`) and add your key(s):
+Set up the Google AI key in the relevant local YAML configuration under `configs/` (the current pipeline expects an `LLMEmb.api_keys` entry):
+
 ```yaml
 LLMEmb:
   api_keys:
     - "YOUR_GOOGLE_AI_API_KEY_HERE"
 ```
-You can obtain a key from your [Google AI Studio account](https://aistudio.google.com/app/apikey).
 
-### Updating the Environment
-If the `environment.yml` file is updated, you can update your existing environment:
+Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey). **Never commit real API keys** or credential-containing local configuration files to the repository.
+
+## Reproducing the experiments
+
+The repository exposes three main entry points:
+
+| Script | Purpose |
+| :-- | :-- |
+| `run.py` | Data preparation, KG extraction, AMIE mining, narrative profiling, and embeddings |
+| `run_experiments.py` | Matrix Factorization / Hybrid-Blend experiments |
+| `run_neural_experiments.py` | NeuMF / SpaceInit experiments |
+
+The following commands reflect the examples from the repository's existing README. **For exact paper reproduction**, confirm the selected data split, FOL/NoFOL condition, embedding variant (**Qwen3-Embedding-4B**), and trained-backbone configuration. The pipeline example uses default model settings; consult `variantHandler.py` to select the intended embedding variant.
+
+**1. Build the data/semantic pipeline:**
+
 ```bash
-conda activate folm_env
-conda env update --file environment.yml --prune
+python run.py --config ml1m_base_settings_baseline.yml --run-all
 ```
 
----
+**2. Run MF / Hybrid-Blend:**
 
-## 🚀 Usage
+```bash
+python run_experiments.py -c ml1m_base_settings_qwen4BFOL.yml
+```
 
-The framework is executed via three main scripts: `run.py` (for data/KG/LLM pipeline), `run_experiments.py` (for MFevaluation), and `run_neural_experiments.py` (for NeuMF evaluation).
+**3. Run NeuMF / SpaceInit:**
 
-### 1. Configure Your Run
-Modify a YAML configuration file in the `configs/` directory. This file controls the dataset paths (e.g., MovieLens 1M, Book Genome), 10-core filtering, AMIE extraction parameters (atom depth, support), and LLM profile generation templates.
+```bash
+python run_neural_experiments.py --config ml1m_optuna_neural_baseline.yml
+python run_neural_experiments.py --config ml1m_optunaNewNMF_LLMEmb_QWEN4.yml
+```
 
-### 2. Run the Data & Embedding Pipeline
-The `run.py` script executes the semantic smoothing process. You can run the entire pipeline or specific stages:
+To isolate the symbolic increment, compare corresponding **NoFOL** and **FOL** configurations while keeping the semantic profiling and downstream evaluation pipeline comparable. The paper reports a **10-core filtered per-user random holdout** (20% test, 10% validation), and Book Genome is additionally stratified-subsampled. The KG, rule mining, and narrative profiling use **training data only**.
 
-*   **Run all stages (recommended for the first run):**
-    ```bash
-    python run.py --config your_config.yml --run-all
-    ```
+### Run pipeline stages individually
 
-*   **Run specific stages individually:**
-    ```bash
-    # Stage 1: Build the unified knowledge graph (local data + SPARQL DBpedia traversal)
-    python run.py --config your_config.yml --run-crawler
+```bash
+python run.py --config your_config.yml --run-crawler
+python run.py --config your_config.yml --run-amie
+python run.py --config your_config.yml --run_llm_calls
+python run.py --config your_config.yml --run-llm-pipeline
+```
 
-    # Stage 2: Mine First-Order Logic (FOL) rules with AMIE
-    python run.py --config your_config.yml --run-amie
+The YAML configuration controls the dataset, preprocessing, rule-mining settings, prompts, and experiment parameters. Use configuration files available in `configs/` and `neural_configs/` as the starting points.
 
-    # Stage 3: Generate logic-to-narrative profiles via Gemini LLM
-    python run.py --config your_config.yml --run_llm_calls
+## Repository structure
 
-    # Stage 4: Encode text profiles into dense semantic embeddings (e.g., Qwen3)
-    python run.py --config your_config.yml --run-llm-pipeline
-    ```
+| Path | Role |
+| :-- | :-- |
+| [`folm_core/`](folm_core/) | Core FOLMind implementation modules |
+| [`configs/`](configs/) | Pipeline and MF configurations |
+| [`neural_recommender/`](neural_recommender/) | NeuMF implementations and training components |
+| [`neural_configs/`](neural_configs/) | Neural backbone configuration files |
+| [`variantHandler.py`](variantHandler.py) | Model/representation variant selection |
+| [`run.py`](run.py) | Main multi-stage pipeline entry point |
+| [`run_experiments.py`](run_experiments.py) | MF experiments |
+| [`run_neural_experiments.py`](run_neural_experiments.py) | NeuMF experiments |
 
-### 3. Run Recommendation Experiments (Stage 5)
-Once embeddings are generated, integrate them into the backbones.
+## Citation
 
-*   **Hybrid-Blend for Matrix Factorization (MF):**
-    ```bash
-    python run_experiments.py -c your_config.yml
-    ```
-    Trains the MF backbone, computes top-k semantic neighborhood similarity from normalized profile embeddings, and blends the collaborative scores with semantic predictions at inference time.
+If this repository or the FOLMind method supports your work, please cite the accepted paper. The entry below identifies its **acceptance status**; replace it with the definitive proceedings citation once available.
 
-*   **SpaceInit for Neural Matrix Factorization (NeuMF):**
-    ```bash
-    python run_neural_experiments.py --config your_neural_config.yml
-    ```
-    Uses semantic profile embeddings to project and warm-start NeuMF's latent representation space (`p_u` and `q_i`) before joint optimization.
+```bibtex
+@unpublished{smaldini2026folmind,
+  title  = {FOLMind: Logic-Guided Hybrid Representations for Collaborative Recommendation},
+  author = {Smaldini, Raffaele and Carmosino, Gianni and Di Palma, Dario and
+            Mancino, Alberto Carlo Maria and Di Noia, Tommaso and Narducci, Fedelucio},
+  year   = {2026},
+  note   = {Accepted at the Second International Workshop on Hybrid AI for
+            Human-Centric Personalization and Recommendation (HyPeR 2026),
+            co-located with CIKM 2026}
+}
+```
 
----
+## Contributing
 
-## 🏛️ Framework Architecture
+Contributions, issue reports, and suggestions for additional datasets, rule-selection methods, embedding models, and integration strategies are welcome. Please open an issue or submit a pull request describing the proposed change.
 
-The codebase is organized into modular components reflecting the paper's methodology:
+## License
 
-*   **`crawler/`**: Constructs the KB-agnostic Knowledge Graph via URI mapping and multi-hop SPARQL traversal to retrieve semantic metadata (e.g., genres, directors, topics).
-*   **`amie/`**: Interfaces with the AMIE system to discover dataset-level Horn-clause rules (`R`) over the graph `G`.
-*   **`Emb/`**: The core logic-to-narrative module. Handles rule filtering, prompt generation, Gemini API interactions (`LLMEmbAPI`), parsing reasoning traces, and dense embedding encoding using models like Qwen3-Embedding-4B.
-*   **`recommender/`**: Implements collaborative scorers (e.g., `MF_Elliot`) and the `Folminder` handler for applying `Hybrid-Blend` (score-level fusion) operations.
-*   **`neural_recommender/`**: Contains PyTorch implementations of `NeuMF` architectures, the trainer, and the projection mechanisms required for the `SpaceInit` strategy.
-*   **`configs/` & `neural_configs/`**: YAML directories managing hyperparameters optimized via Optuna (e.g., semantic neighbor counts, alpha blending weights).
-
----
-
-## ⚙️ Configuration
-
-All pipeline settings are exposed via YAML:
-
-*   **Main Config (`configs/`)**: Defines the dataset, sparsity filters, AMIE rule thresholding (head coverage, support), LLM context integration templates, and MF evaluation parameters.
-*   **Crawler Config**: Defines semantic enrichment rules, SPARQL endpoints (e.g., DBpedia), and graph relation mappings (e.g., `has_genre`, `directed_by`).
-*   **Neural Config (`neural_configs/`)**: Controls NeuMF training dynamics (BPR sampling, AdamW, early stopping) and specific `SpaceInit` projection dimensions.
+The repository is distributed under the [Apache License 2.0](LICENSE). See the license file for terms and conditions.
 
 ---
 
-## 🤝 Contributing
+<div align="center">
 
-Contributions to expand FOLMind to new datasets, integration strategies, or rule miners are welcome! Please fork the repository, create a new branch for your feature, and submit a pull request.
+**FOLMind · Official implementation of the HyPeR 2026 accepted paper**
 
----
+*Explicit logic - narrative representations - collaborative recommendation*
 
-## 📄 License
-This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
-
----
+</div>
